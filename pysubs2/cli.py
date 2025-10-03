@@ -185,6 +185,9 @@ class Pysubs2CLI:
                         outpath = op.join(args.output_dir, filename)
 
                     with open(outpath, "w", encoding=args.output_enc, errors=args.enc_error_handling) as outfile:
+                        # FIXME When converting a .srt file to a .ass file there is a precision that is lost in the subs timing.
+                        # Because of that, the subtitle can appear at a different frame.
+                        # Ex: The start time 1503 ms (frame 37) of a srt line could be converted to 150 cs (frame 36) for a ass subtitle. A solution would be to use ABCTimestamps.time_to_time
                         subs.to_file(outfile, output_format, args.fps, apply_styles=not args.clean,
                                      **extra_output_args)
         elif not sys.stdin.isatty():

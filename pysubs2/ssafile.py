@@ -1,8 +1,11 @@
 import io
 from itertools import chain
+from numbers import Real
 import os.path
 import logging
-from typing import Optional, List, Dict, Iterable, Any, overload, Iterator, TextIO, Tuple, MutableSequence
+from typing import Optional, List, Dict, Iterable, Any, Union, overload, Iterator, TextIO, Tuple, MutableSequence
+
+from video_timestamps import ABCTimestamps
 
 from .common import IntOrFloat
 from .ssaevent import SSAEvent
@@ -284,7 +287,7 @@ class SSAFile(MutableSequence[SSAEvent]):
     # ------------------------------------------------------------------------
 
     def shift(self, h: IntOrFloat = 0, m: IntOrFloat = 0, s: IntOrFloat = 0, ms: IntOrFloat = 0,
-              frames: Optional[int] = None, fps: Optional[float] = None) -> None:
+              frames: Optional[int] = None, fps: Optional[Union[Real,ABCTimestamps]]=None) -> None:
         """
         Shift all subtitles by constant time amount.
 
@@ -304,10 +307,8 @@ class SSAFile(MutableSequence[SSAEvent]):
             ValueError: Invalid fps or missing number of frames.
 
         """
-        delta = make_time(h=h, m=m, s=s, ms=ms, frames=frames, fps=fps)
         for line in self:
-            line.start += delta
-            line.end += delta
+            line.shift(h=h, m=m, s=s, ms=ms, frames=frames, fps=fps)
 
     def transform_framerate(self, in_fps: float, out_fps: float) -> None:
         """

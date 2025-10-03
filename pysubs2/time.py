@@ -1,5 +1,8 @@
+from fractions import Fraction
+from numbers import Real
 import re
-from typing import Optional, Sequence, NamedTuple
+from typing import Optional, Sequence, NamedTuple, Union
+from video_timestamps import ABCTimestamps, FPSTimestamps, RoundingMethod, TimeType
 
 from .common import IntOrFloat
 
@@ -19,7 +22,7 @@ class Times(NamedTuple):
 
 
 def make_time(h: IntOrFloat = 0, m: IntOrFloat = 0, s: IntOrFloat = 0, ms: IntOrFloat = 0,
-              frames: Optional[int] = None, fps: Optional[float] = None) -> int:
+              frames: Optional[int]=None, fps: Optional[Union[Real,ABCTimestamps]]=None, time_type: Optional[TimeType] = None) -> int:
     """
     Convert time to milliseconds.
 
@@ -36,12 +39,17 @@ def make_time(h: IntOrFloat = 0, m: IntOrFloat = 0, s: IntOrFloat = 0, ms: IntOr
         2000
 
     """
-    if frames is None and fps is None:
+    if frames is None and fps is None and time_type is None:
         return times_to_ms(h, m, s, ms)
-    elif frames is not None and fps is not None:
-        return frames_to_ms(frames, fps)
+    elif frames is not None and fps is not None and time_type is not None:
+        if isinstance(fps, Real):
+            # Suppose that the user want to have compatibility with mkv.
+            timestamps = FPSTimestamps(RoundingMethod.ROUND, Fraction(1000), Fraction(fps))
+        elif isinstance(fps, ABCTimestamps):
+            timestamps = fps
+        return timestamps.frame_to_time(frames, time_type, 3)
     else:
-        raise ValueError("Both fps and frames must be specified")
+        raise ValueError("Both fps, frames and time_type must be specified")
 
 
 def timestamp_to_ms(groups: Sequence[str]) -> int:
@@ -93,13 +101,14 @@ def times_to_ms(h: IntOrFloat = 0, m: IntOrFloat = 0, s: IntOrFloat = 0, ms: Int
     return int(round(ms))
 
 
-def frames_to_ms(frames: int, fps: float) -> int:
+def frames_to_ms(frames: int, fps: float, time_type: TimeType) -> int:
     """
     Convert frame-based duration to milliseconds.
     
     Arguments:
         frames: Number of frames (should be int).
         fps: Framerate (must be a positive number, eg. 23.976).
+        time_type: The time type (START, END, EXACT).
     
     Returns:
         Number of milliseconds (rounded to int).
@@ -111,10 +120,12 @@ def frames_to_ms(frames: int, fps: float) -> int:
     if fps <= 0:
         raise ValueError(f"Framerate must be a positive number ({fps}).")
 
-    return int(round(frames * (1000 / fps)))
+    # Suppose that the user wants to have compatibility with mkv.
+    timestamps = FPSTimestamps(RoundingMethod.ROUND, Fraction(1000), Fraction(fps))
+    return timestamps.frame_to_time(frames, time_type, 3)
 
 
-def ms_to_frames(ms: IntOrFloat, fps: float) -> int:
+def ms_to_frames(ms: IntOrFloat, fps: float, time_type: TimeType) -> int:
     """
     Convert milliseconds to number of frames.
     
@@ -132,7 +143,9 @@ def ms_to_frames(ms: IntOrFloat, fps: float) -> int:
     if fps <= 0:
         raise ValueError(f"Framerate must be a positive number ({fps}).")
 
-    return int(round((ms / 1000) * fps))
+    # Suppose that the user wants to have compatibility with mkv.
+    timestamps = FPSTimestamps(RoundingMethod.ROUND, Fraction(1000), Fraction(fps))
+    return timestamps.time_to_frame(ms, time_type, 3)
 
 
 def ms_to_times(ms: IntOrFloat) -> Times:

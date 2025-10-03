@@ -1,6 +1,10 @@
+from fractions import Fraction
 from functools import partial
+from numbers import Real
 import re
-from typing import Optional, TextIO, Any, Match
+from typing import Optional, TextIO, Any, Match, Union
+
+from video_timestamps import ABCTimestamps, FPSTimestamps, RoundingMethod, TimeType
 
 from ..exceptions import UnknownFPSError
 from ..ssaevent import SSAEvent
@@ -26,7 +30,7 @@ class MicroDVDFormat(FormatBase):
             return None
 
     @classmethod
-    def from_file(cls, subs: "SSAFile", fp: TextIO, format_: str, fps: Optional[float] = None,
+    def from_file(cls, subs: "SSAFile", fp: TextIO, format_: str, fps: Union[None,Real,ABCTimestamps] = None,
                   strict_fps_inference: bool = True, **kwargs: Any) -> None:
         """
         See :meth:`pysubs2.formats.FormatBase.from_file()`
@@ -45,6 +49,12 @@ class MicroDVDFormat(FormatBase):
                 .. versionchanged:: 1.7.0
                    Added the ``strict_fps_inference`` option.
         """
+        if isinstance(fps, Real):
+            # Suppose that the user want to have compatibility with mkv.
+            timestamps = FPSTimestamps(RoundingMethod.ROUND, Fraction(1000), Fraction(fps))
+        elif isinstance(fps, ABCTimestamps):
+            timestamps = fps
+
         for line in fp:
             match = MICRODVD_LINE.match(line)
             if not match:
@@ -64,13 +74,16 @@ class MicroDVDFormat(FormatBase):
 
                     fps = float(text)
                     subs.fps = fps
-                    continue
                 except ValueError:
                     raise UnknownFPSError("Framerate was not specified and "
                                           "cannot be read from "
                                           "the MicroDVD file.")
+                
+                timestamps = FPSTimestamps(RoundingMethod.ROUND, Fraction(1000), Fraction(subs.fps))
+                continue
 
-            start, end = map(partial(frames_to_ms, fps=fps), (fstart, fend))
+            start = timestamps.frame_to_time(fstart, TimeType.START, 3)
+            end = timestamps.frame_to_time(fend, TimeType.END, 3)
 
             def prepare_text(text: str) -> str:
                 text = text.replace("|", r"\N")
@@ -90,7 +103,7 @@ class MicroDVDFormat(FormatBase):
             subs.append(ev)
 
     @classmethod
-    def to_file(cls, subs: "SSAFile", fp: TextIO, format_: str, fps: Optional[float] = None,
+    def to_file(cls, subs: "SSAFile", fp: TextIO, format_: str, fps: Union[None,Real,ABCTimestamps] = None,
                 write_fps_declaration: bool = True, apply_styles: bool = True, **kwargs: Any) -> None:
         """
         See :meth:`pysubs2.formats.FormatBase.to_file()`
@@ -108,7 +121,11 @@ class MicroDVDFormat(FormatBase):
 
         if fps is None:
             raise UnknownFPSError("Framerate must be specified when writing MicroDVD.")
-        to_frames = partial(ms_to_frames, fps=fps)
+        elif isinstance(fps, Real):
+            # Suppose that the user want to have compatibility with mkv.
+            timestamps = FPSTimestamps(RoundingMethod.ROUND, Fraction(1000), Fraction(fps))
+        elif isinstance(fps, ABCTimestamps):
+            timestamps = fps
 
         def is_entirely_italic(line: SSAEvent) -> bool:
             style = subs.styles.get(line.style, SSAStyle.DEFAULT_STYLE)
@@ -122,14 +139,15 @@ class MicroDVDFormat(FormatBase):
 
         # insert an artificial first line telling the framerate
         if write_fps_declaration:
-            subs.insert(0, SSAEvent(start=1, end=1, text=str(fps)))
+            subs.insert(0, SSAEvent(start=1, end=2, text=str(fps)))
 
         for line in subs.get_text_events():
             text = "|".join(line.plaintext.splitlines())
             if apply_styles and is_entirely_italic(line):
                 text = "{Y:i}" + text
 
-            start, end = map(to_frames, (line.start, line.end))
+            start = timestamps.time_to_frame(line.start, TimeType.START, 3)
+            end = timestamps.time_to_frame(line.end, TimeType.END, 3)
 
             # XXX warn on underflow?
             if start < 0:

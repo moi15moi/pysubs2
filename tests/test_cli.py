@@ -9,11 +9,11 @@ from io import StringIO
 
 TEST_SRT_FILE = """\
 1
-00:00:00,000 --> 00:01:00,000
+00:00:00,000 --> 00:01:00,001
 An example subtitle.
 
 2
-00:01:00,000 --> 00:02:00,000
+00:01:00,000 --> 00:02:00,001
 Subtitle number
 two.
 
@@ -90,11 +90,11 @@ def test_microdvd_to_srt() -> None:
 
 TEST_SRT_FILE_SHIFTED = """\
 1
-01:00:01,500 --> 01:01:01,500
+01:00:01,500 --> 01:01:01,501
 An example subtitle.
 
 2
-01:01:01,500 --> 01:02:01,500
+01:01:01,500 --> 01:02:01,501
 Subtitle number
 two.
 

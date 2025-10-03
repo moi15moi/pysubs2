@@ -64,15 +64,19 @@ def test_shift() -> None:
 
     e2 = e.copy()
     e2.shift(ms=-5)
-    assert e2 == SSAEvent(start=-5, end=5)
+    assert e2 == SSAEvent(start=0, end=5)
+
+    e2 = e.copy()
+    e2.shift(ms=-5)
+    assert e2 == SSAEvent(start=0, end=5)
 
     e2 = e.copy()
     e2.shift(frames=1, fps=100.0)
-    assert e2 == SSAEvent(start=10, end=20)
+    assert e2 == SSAEvent(start=5, end=15)
 
     e2 = e.copy()
     e2.shift(frames=-1, fps=100.0)
-    assert e2 == SSAEvent(start=-10, end=0)
+    assert e2 == SSAEvent(start=0, end=0)
 
     e2 = e.copy()
     e2.shift(h=1, m=-60, s=2, ms=-2000)

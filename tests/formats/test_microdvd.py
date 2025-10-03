@@ -34,19 +34,19 @@ def test_framerate_inference() -> None:
     subs1 = SSAFile.from_string(has_fps)
     assert subs1.fps == fps
     assert len(subs1) == 1
-    assert subs1[0] == SSAEvent(start=10, end=20, text="Hello!")
+    assert subs1[0] == SSAEvent(start=10, end=21, text="Hello!")
     
     subs2 = SSAFile.from_string(no_fps, fps=fps)
     assert subs2.fps == fps
     assert len(subs2) == 1
-    assert subs2[0] == SSAEvent(start=10, end=20, text="Hello!")
+    assert subs2[0] == SSAEvent(start=10, end=21, text="Hello!")
     
     # fps argument takes preference over what the file says, first line is kept
     subs3 = SSAFile.from_string(ignored_fps, fps=fps)
     assert subs3.fps == fps
     assert len(subs3) == 2
-    assert subs3[0] == SSAEvent(start=1, end=1, text="23.976")
-    assert subs3[1] == SSAEvent(start=10, end=20, text="Hello!")
+    assert subs3[0] == SSAEvent(start=1, end=2, text="23.976")
+    assert subs3[1] == SSAEvent(start=10, end=21, text="Hello!")
     
     with pytest.raises(UnknownFPSError):
         SSAFile.from_string(no_fps)
@@ -61,7 +61,7 @@ def test_framerate_inference() -> None:
     subs4 = SSAFile.from_string(bad_frame_fps, strict_fps_inference=False)
     assert subs4.fps == fps
     assert len(subs4) == 1
-    assert subs4[0] == SSAEvent(start=10, end=20, text="Hello!")
+    assert subs4[0] == SSAEvent(start=10, end=21, text="Hello!")
 
 
 def test_extra_whitespace_parsing() -> None:
@@ -74,7 +74,7 @@ def test_extra_whitespace_parsing() -> None:
     """)
     
     subs = SSAFile.from_string(f)
-    assert subs[0] == SSAEvent(start=10, end=20, text="Hello!")
+    assert subs[0] == SSAEvent(start=10, end=21, text="Hello!")
 
 
 def test_newlines_parsing() -> None:
@@ -128,11 +128,11 @@ def test_parser_skipping_lines() -> None:
 def test_writer_tags() -> None:
     subs = SSAFile()
     subs.styles["italic_style"] = SSAStyle(italic=True)
-    subs.events = [SSAEvent(start=0, end=10, text=r"Plain."),
-                   SSAEvent(start=0, end=10, text=r"{\i1}Inline."),
-                   SSAEvent(start=0, end=10, text=r"Styled.", style="italic_style"),
-                   SSAEvent(start=0, end=10, text=r"{\i1}Also{\i0} {\ritalic_style}italic."),
-                   SSAEvent(start=0, end=10, text=r"Not {\i1}italic.")]
+    subs.events = [SSAEvent(start=0, end=11, text=r"Plain."),
+                   SSAEvent(start=0, end=11, text=r"{\i1}Inline."),
+                   SSAEvent(start=0, end=11, text=r"Styled.", style="italic_style"),
+                   SSAEvent(start=0, end=11, text=r"{\i1}Also{\i0} {\ritalic_style}italic."),
+                   SSAEvent(start=0, end=11, text=r"Not {\i1}italic.")]
     
     f = dedent("""\
     {1}{1}1000
@@ -148,7 +148,7 @@ def test_writer_tags() -> None:
 
 def test_writer_uses_original_fps() -> None:
     subs = SSAFile()
-    subs.append(SSAEvent(start=0, end=10, text="Hello!"))
+    subs.append(SSAEvent(start=0, end=11, text="Hello!"))
     subs.fps = 1000
     
     f = dedent("""\
@@ -161,8 +161,8 @@ def test_writer_uses_original_fps() -> None:
 
 def test_writer_skips_comment_lines() -> None:
     subs = SSAFile()
-    subs.append(SSAEvent(start=0, end=10, text="Hello!"))
-    subs.append(SSAEvent(start=0, end=10, text="World!"))
+    subs.append(SSAEvent(start=0, end=11, text="Hello!"))
+    subs.append(SSAEvent(start=0, end=11, text="World!"))
     subs[0].is_comment = True
     
     f = dedent("""\
@@ -175,7 +175,7 @@ def test_writer_skips_comment_lines() -> None:
 
 def test_writer_handles_whitespace() -> None:
     subs = SSAFile()
-    subs.append(SSAEvent(start=0, end=10,
+    subs.append(SSAEvent(start=0, end=11,
                          text=r"Hello,\hworld!\NSo many\N\nNewlines."))
     
     f = dedent("""\
@@ -188,7 +188,7 @@ def test_writer_handles_whitespace() -> None:
 
 def test_writer_strips_tags() -> None:
     subs = SSAFile()
-    subs.append(SSAEvent(start=0, end=10, text="Let me tell you{a secret}."))
+    subs.append(SSAEvent(start=0, end=11, text="Let me tell you{a secret}."))
     
     f = dedent("""\
     {1}{1}1000
@@ -204,8 +204,8 @@ def test_write_drawing() -> None:
     subs.append(SSAEvent(start=10, end=20, text="Let me tell you."))
 
     f = dedent("""\
-    {1}{1}1000
-    {10}{20}Let me tell you.
+    {0}{0}1000
+    {10}{19}Let me tell you.
     """)
 
     assert subs.to_string("microdvd", fps=1000) == f

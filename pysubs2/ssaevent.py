@@ -1,7 +1,11 @@
+from fractions import Fraction
+from numbers import Real
 import re
 import warnings
-from typing import Optional, Dict, Any, ClassVar, FrozenSet
+from typing import Optional, Dict, Any, ClassVar, FrozenSet, Union
 import dataclasses
+
+from video_timestamps import ABCTimestamps, FPSTimestamps, RoundingMethod, TimeType
 
 from .common import IntOrFloat
 from .time import ms_to_str, make_time
@@ -115,16 +119,45 @@ class SSAEvent:
         self.text = text.replace("\n", r"\N")
 
     def shift(self, h: IntOrFloat = 0, m: IntOrFloat = 0, s: IntOrFloat = 0, ms: IntOrFloat = 0,
-              frames: Optional[int] = None, fps: Optional[float] = None) -> None:
+              frames: Optional[int] = None, fps: Optional[Union[Real,ABCTimestamps]]=None) -> None:
         """
         Shift start and end times.
 
         See :meth:`SSAFile.shift()` for full description.
 
         """
-        delta = make_time(h=h, m=m, s=s, ms=ms, frames=frames, fps=fps)
-        self.start += delta
-        self.end += delta
+        if frames is None and fps is None:
+            delta = make_time(h=h, m=m, s=s, ms=ms)
+            self.start += delta
+            self.start = max(self.start, 0)
+            self.end += delta
+            self.end = max(self.end, 0)
+        elif frames is None or fps is None:
+            raise ValueError("Both fps and frames must be specified")
+        else:
+            if isinstance(fps, Real):
+                # Suppose that the user want to have compatibility with mkv.
+                timestamps = FPSTimestamps(RoundingMethod.ROUND, Fraction(1000), Fraction(fps))
+            elif isinstance(fps, ABCTimestamps):
+                timestamps = fps
+            else:
+                raise TypeError("Unexpected type for fps")
+
+            start_frame = timestamps.time_to_frame(self.start, TimeType.START, 3)
+            end_frame = timestamps.time_to_frame(self.end, TimeType.END, 3)
+
+            start_frame += frames
+            end_frame += frames
+
+            if start_frame >= 0:
+                self.start = timestamps.frame_to_time(start_frame, TimeType.START, 3, True)
+            else:
+                self.start = 0
+            
+            if end_frame >= 0:
+                self.end = timestamps.frame_to_time(end_frame, TimeType.END, 3, True)
+            else:
+                self.end = 0
 
     def copy(self) -> "SSAEvent":
         """Return a copy of the SSAEvent."""
